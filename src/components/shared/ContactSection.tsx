@@ -39,7 +39,7 @@ const COUNTRY_DATA = [
   { name: "United States", code: "+1", iso: "US" },
 ];
 
-export default function ContactSection({ locale }: { locale: string }) {
+export default function ContactSection({ locale, isSidebar = false }: { locale: string, isSidebar?: boolean }) {
   const isEn = locale === "en";
   
   const [formData, setFormData] = useState({
@@ -56,26 +56,30 @@ export default function ContactSection({ locale }: { locale: string }) {
   }, []);
 
   return (
-    <section className="relative w-full py-24 bg-[#0A1A2F] overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
+    <section className={`relative w-full ${isSidebar ? "py-0 bg-white" : "py-24 bg-[#0A1A2F]"} overflow-hidden`}>
+      <div className={`${isSidebar ? "w-full" : "max-w-7xl mx-auto px-6"} relative z-10`}>
         
         {/* HEADING */}
         <div className="text-center mb-16">
-          <span style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-secondary)', fontSize: '18px', fontWeight: 500, letterSpacing: '2.88px', textTransform: 'uppercase', display: 'block' }}>
-            {isEn ? "Questions?" : "أسئلة؟"}
-          </span>
-          <h2 style={{ color: 'rgb(189, 165, 136)', fontFamily: 'var(--font-primary)', fontSize: '42px', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: '8px' }}>
-            {isEn ? "Get In Touch" : "تواصل معنا"}
+          {!isSidebar && (
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-secondary)', fontSize: '18px', fontWeight: 500, letterSpacing: '2.88px', textTransform: 'uppercase', display: 'block' }}>
+              {isEn ? "Questions?" : "أسئلة؟"}
+            </span>
+          )}
+          <h2 style={{ color: 'rgb(189, 165, 136)', fontFamily: 'var(--font-primary)', fontSize: isSidebar ? '32px' : '42px', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: '8px' }}>
+            {isSidebar 
+              ? (isEn ? "Register Your Interest" : "سجل اهتمامك") 
+              : (isEn ? "Get In Touch" : "تواصل معنا")}
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 shadow-2xl rounded-sm overflow-hidden">
+        <div className={`grid grid-cols-1 ${isSidebar ? "" : "lg:grid-cols-2 shadow-2xl rounded-sm overflow-hidden"} gap-0`}>
           
-          <div className="bg-white p-8 md:p-12">
+        <div className={`bg-white ${isSidebar ? "p-0" : "p-8 md:p-12"}`}>
             <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
               
               {/* Row 1: Names */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className={`grid grid-cols-1 ${isSidebar ? "" : "md:grid-cols-2"} gap-8`}>
                 <div className="flex flex-col border-b border-gray-300 focus-within:border-[#BDA588]">
                   <label className="text-[11px] font-bold text-[#BDA588] uppercase tracking-wider">First Name*</label>
                   <input type="text" required className="bg-white py-3 outline-none text-gray-800" placeholder="John" />
@@ -87,7 +91,7 @@ export default function ContactSection({ locale }: { locale: string }) {
               </div>
 
               {/* Row 2: Phone & Email */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className={`grid grid-cols-1 ${isSidebar ? "" : "md:grid-cols-2"} gap-8`}>
                 <div className="flex flex-col border-b border-gray-300 focus-within:border-[#BDA588]">
                   <label className="text-[11px] font-bold text-[#BDA588] uppercase tracking-wider">Phone Number*</label>
                   <div className="flex gap-2">
@@ -112,7 +116,7 @@ export default function ContactSection({ locale }: { locale: string }) {
               </div>
 
               {/* Row 3: Budget & Unit */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className={`grid grid-cols-1 ${isSidebar ? "" : "md:grid-cols-2"} gap-8`}>
                 <div className="flex flex-col border-b border-gray-300 focus-within:border-[#BDA588]">
                   <label className="text-[11px] font-bold text-[#BDA588] uppercase tracking-wider">Select Budget*</label>
                   <select 
@@ -146,7 +150,7 @@ export default function ContactSection({ locale }: { locale: string }) {
               </div>
 
               {/* Row 4: Timeline & Nationality */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className={`grid grid-cols-1 ${isSidebar ? "" : "md:grid-cols-2"} gap-8`}>
                 <div className="flex flex-col border-b border-gray-300 focus-within:border-[#BDA588]">
                   <label className="text-[11px] font-bold text-[#BDA588] uppercase tracking-wider">Purchase Timeline*</label>
                   <select 
@@ -204,6 +208,7 @@ export default function ContactSection({ locale }: { locale: string }) {
             </form>
           </div>
 
+          {!isSidebar && (
           <div className="relative hidden lg:block h-full min-h-[750px] bg-gray-200">
             <CldImage 
               src="skyline_get-in-touch_vkeujg" 
@@ -213,6 +218,7 @@ export default function ContactSection({ locale }: { locale: string }) {
             />
             <div className="absolute inset-0 bg-black/10" />
           </div>
+          )}
 
         </div>
       </div>

@@ -69,7 +69,7 @@ const NAV_STRUCTURE = (isEn: boolean): NavItem[] => [
     name: isEn ? "MEDIA" : "إعلام",
     type: "list",
     basePath: "media",
-    items: ["NEWS", "VIDEO", "3D TOURS", "BLOG"],
+    items: ["NEWS", "VIDEO", "3D TOURS", "BLOGS"],
   },
 ];
 

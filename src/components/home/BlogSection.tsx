@@ -14,7 +14,7 @@ const BLOG_DATA = (isEn: boolean) => [
   { 
     id: 2, 
     title: isEn ? "SUCCESS STORIES OF ENTREPRENEURS IN THE UAE" : "قصص نجاح رواد الأعمال في الإمارات", 
-    publicId: "success-stories-of-entrepreneurs-in-the-uae_tonpbh" 
+    publicId: "meet-the-richest-indian-in-dubai-a-billionaire-businessman-who-has-a-staggering-net-worth-of-rs-20883-crore-and-runs-a-rs-16709-crore-empire_olbyih" 
   },
   { 
     id: 3, 
