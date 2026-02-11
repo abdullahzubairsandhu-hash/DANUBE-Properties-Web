@@ -1,9 +1,15 @@
 // src/components/home/BlogSection.tsx
 
 "use client";
+
+import { useEffect, useRef } from "react";
 import { CldImage } from 'next-cloudinary';
 import Link from 'next/link';
 import { ChevronRight } from "lucide-react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const BLOG_DATA = (isEn: boolean) => [
   { 
@@ -31,13 +37,46 @@ const BLOG_DATA = (isEn: boolean) => [
 export default function BlogSection({ locale }: { locale: string }) {
   const isEn = locale === "en";
   const posts = BLOG_DATA(isEn);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // 1. Header Reveal
+      gsap.from(headerRef.current, {
+        scrollTrigger: {
+          trigger: headerRef.current,
+          start: "top 90%",
+        },
+        y: 50,
+        opacity: 0,
+        duration: 1,
+        ease: "power3.out"
+      });
+
+      // 2. Staggered Card Reveal
+      gsap.from(".blog-card", {
+        scrollTrigger: {
+          trigger: ".blog-grid",
+          start: "top 80%",
+        },
+        y: 100,
+        opacity: 0,
+        stagger: 0.15, // Delay between each card
+        duration: 1.2,
+        ease: "power4.out"
+      });
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <section className="py-24 bg-white dark:bg-danube-navy">
+    <section ref={sectionRef} className="py-24 bg-white dark:bg-danube-navy overflow-hidden">
       <div className="max-w-[1440px] mx-auto px-8">
         
         {/* HEADER */}
-        <div className="flex justify-between items-end mb-16 border-b border-gray-100 dark:border-white/10 pb-8">
+        <div ref={headerRef} className="flex justify-between items-end mb-16 border-b border-gray-100 dark:border-white/10 pb-8">
           <div>
             <span className="text-danube-red font-black tracking-[0.4em] text-[10px] uppercase block mb-2">
               {isEn ? "STAY UPDATED" : "كن على اطلاع"}
@@ -46,17 +85,20 @@ export default function BlogSection({ locale }: { locale: string }) {
               {isEn ? "LATEST NEWS & BLOGS" : "آخر الأخبار"}
             </h2>
           </div>
-          <Link href={`/${locale}/blog`} className="hidden md:flex items-center gap-2 text-danube-gold font-black tracking-widest text-[10px] hover:text-danube-red transition-colors uppercase">
+          <Link 
+            href={`/${locale}/blog`} 
+            className="hidden md:flex items-center gap-2 text-danube-gold font-black tracking-widest text-[10px] hover:text-danube-red transition-colors uppercase"
+          >
             {isEn ? "VIEW ALL" : "عرض الكل"} <ChevronRight size={14} />
           </Link>
         </div>
 
         {/* GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="blog-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {posts.map((post) => (
-            <div key={post.id} className="group cursor-pointer">
+            <div key={post.id} className="blog-card group cursor-pointer">
               {/* IMAGE CONTAINER */}
-              <div className="relative h-[400px] w-full mb-6 overflow-hidden bg-gray-200">
+              <div className="relative h-[400px] w-full mb-6 overflow-hidden bg-gray-200 shadow-lg">
                 <CldImage 
                   src={post.publicId} 
                   alt={post.title}

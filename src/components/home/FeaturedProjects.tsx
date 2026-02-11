@@ -1,9 +1,14 @@
 // src/components/home/FeaturedProjects.tsx
+
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Link from 'next/link';
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import CldImage from "@/components/shared/CldImageWrapper";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const FEATURED_PROJECTS = [
   { id: "breez", publicId: "Breez-image-1_zueu8a", slug: "breez" },
@@ -26,76 +31,93 @@ const WHY_INVEST = [
 ];
 
 export default function FeaturedProjects({ locale }: { locale: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [progress, setProgress] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
+  const mainContainer = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const isEn = locale === 'en';
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      
-      const active = rect.top <= 0 && rect.bottom >= windowHeight;
-      setIsVisible(active);
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: triggerRef.current,
+          start: "top top",
+          end: "+=700%", // Adjusted for 6 images + 1 grid layer
+          pin: true,
+          scrub: 1,
+        }
+      });
 
-      const totalScrollable = containerRef.current.offsetHeight - windowHeight;
-      const currentScroll = -rect.top;
-      const p = Math.min(Math.max(currentScroll / totalScrollable, 0), 1);
-      setProgress(p);
-    };
+      // 1. PROJECT IMAGES REVEAL (6 Images)
+      FEATURED_PROJECTS.forEach((_, index) => {
+        // Slide away/Clip image
+        tl.to(`.project-img-${index}`, {
+          clipPath: 'inset(0 0 100% 0)',
+          duration: 1,
+          ease: "none"
+        }, index);
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+        // Hide it completely so it's not clickable behind other layers
+        tl.to(`.project-img-${index}`, {
+          autoAlpha: 0,
+          duration: 0.1
+        }, index + 1);
+      });
+
+      // 2. REVEAL WHY INVEST CONTENT
+      tl.from(".why-invest-content", {
+        opacity: 0,
+        y: 80,
+        duration: 1,
+        ease: "power2.out"
+      }, FEATURED_PROJECTS.length);
+
+      // 3. STAGGERED GRID ICONS
+      tl.from(".invest-card", {
+        opacity: 0,
+        y: 40,
+        scale: 0.9,
+        stagger: 0.1,
+        duration: 0.6,
+        ease: "power2.out"
+      }, "-=0.5");
+
+    }, mainContainer);
+
+    return () => ctx.revert();
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
-      className="relative w-full bg-white" 
-      style={{ height: "580vh" }} // Shortened from 640vh for a tighter scroll
-    >
-      <div 
-        className={`${isVisible ? 'fixed' : 'absolute'} top-0 left-0 w-full h-screen overflow-hidden`}
-        style={!isVisible && progress > 0.9 ? { top: 'auto', bottom: 0 } : {}}
-      >
+    <div ref={mainContainer} className="relative w-full bg-[#F9F9F9] overflow-hidden">
+      <div ref={triggerRef} className="relative w-full h-screen">
         
-        {FEATURED_PROJECTS.map((project, index) => {
-          // Optimized segments for 6 images + the Grid
-          const start = index * 0.15; 
-          const localProgress = Math.min(Math.max((progress - start) / 0.15, 0), 1);
-
-          return (
-            <div
-              key={project.id}
-              className="absolute inset-0 w-full h-full"
-              style={{
-                zIndex: 30 - index,
-                clipPath: `inset(0 0 ${localProgress * 100}% 0)`,
-                transition: 'clip-path 0.1s linear',
-              }}
+        {/* PROJECT IMAGES */}
+        {FEATURED_PROJECTS.map((project, index) => (
+          <div
+            key={project.id}
+            className={`project-img-${index} absolute inset-0 w-full h-full`}
+            style={{
+              zIndex: 40 - index,
+              clipPath: 'inset(0 0 0% 0)',
+            }}
+          >
+            <Link 
+              href={`/${locale}/projects/${project.slug}`}
+              className="group block relative w-full h-full cursor-pointer"
             >
-              <Link 
-                href={`/${locale}/projects/${project.slug}`}
-                className="group block relative w-full h-full cursor-pointer"
-              >
-                <CldImage 
-  src={project.publicId} 
-  alt={project.id} 
-  fill 
-  className="object-cover object-top" // Changed from just 'object-cover'
-  priority={index < 2} 
-/>
-                <div className="absolute inset-0 bg-black/10" />
-                {/* HEADINGS REMOVED AS REQUESTED */}
-              </Link>
-            </div>
-          );
-        })}
+              <CldImage 
+                src={project.publicId} 
+                alt={project.id} 
+                fill 
+                className="object-cover object-top" 
+                priority={index < 2} 
+              />
+              <div className="absolute inset-0 bg-black/10 transition-colors group-hover:bg-black/20" />
+            </Link>
+          </div>
+        ))}
 
-        {/* FINAL LAYER: WHY INVEST IN DUBAI? */}
-        <div className="absolute inset-0 w-full h-full bg-[#F9F9F9] z-[5] flex flex-col items-center justify-center">
+        {/* WHY INVEST LAYER */}
+        <div className="why-invest-content absolute inset-0 w-full h-full bg-[#F9F9F9] z-10 flex flex-col items-center justify-center">
           <div className="text-center mt-6 mb-8" style={{ direction: isEn ? 'ltr' : 'rtl' }}>
             <span style={{ color: 'rgb(136, 136, 136)', fontFamily: 'var(--font-secondary)', fontSize: '18px', fontWeight: 500, letterSpacing: '2.88px', textTransform: 'uppercase' }}>
               {isEn ? "Why" : "لماذا"}
@@ -105,16 +127,16 @@ export default function FeaturedProjects({ locale }: { locale: string }) {
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 w-full max-w-6xl relative">
+          <div className="grid grid-cols-2 md:grid-cols-4 w-full max-w-6xl relative px-4">
             {WHY_INVEST.map((item, idx) => (
-              <div key={idx} className="relative flex flex-col items-center justify-center p-8 group">
-                {(idx + 1) % 4 !== 0 && <div className="absolute right-0 top-1/4 bottom-1/4 w-[1.5px] bg-gray-300 hidden md:block" />}
-                {idx < 4 && <div className="absolute bottom-0 left-1/4 right-1/4 h-[1.5px] bg-gray-300 hidden md:block" />}
+              <div key={idx} className="invest-card relative flex flex-col items-center justify-center p-8 group">
+                {(idx + 1) % 4 !== 0 && <div className="absolute right-0 top-1/4 bottom-1/4 w-[1.5px] bg-gray-200 hidden md:block" />}
+                {idx < 4 && <div className="absolute bottom-0 left-1/4 right-1/4 h-[1.5px] bg-gray-200 hidden md:block" />}
                 
                 <div className="mb-4 h-[64px] w-[64px] relative transition-transform duration-500 group-hover:scale-110">
                   <CldImage src={item.publicId} alt={isEn ? item.labelEn : item.labelAr} width={64} height={64} className="object-contain" />
                 </div>
-                <p style={{ color: 'rgb(85, 85, 85)', fontFamily: 'var(--font-secondary)', fontSize: '13px', letterSpacing: '1.4px', lineHeight: '1.2', textTransform: 'uppercase', textAlign: 'center', fontWeight: 500 }}>
+                <p className="font-medium" style={{ color: 'rgb(85, 85, 85)', fontFamily: 'var(--font-secondary)', fontSize: '12px', letterSpacing: '1.4px', lineHeight: '1.2', textTransform: 'uppercase', textAlign: 'center' }}>
                   {isEn ? item.labelEn : item.labelAr}
                 </p>
               </div>

@@ -2,18 +2,81 @@
 
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { CldImage } from "next-cloudinary";
 import { Building2, Home } from "lucide-react";
 import ContactSection from "@/components/shared/ContactSection";
 import Footer from "@/components/shared/Footer";
 import { journeyData } from "@/data/journey"; 
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function JourneyClient({ locale }: { locale: string }) {
   const isEn = locale === 'en';
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // 1. ANIME THE CENTER LINE (Grows as you scroll)
+      gsap.fromTo(lineRef.current, 
+        { scaleY: 0 }, 
+        { 
+          scaleY: 1, 
+          ease: "none", 
+          scrollTrigger: {
+            trigger: ".timeline-content",
+            start: "top 70%",
+            end: "bottom 80%",
+            scrub: true,
+          }
+        }
+      );
+
+     // 2. ANIMATE EACH TIMELINE ROW
+     const rows = gsap.utils.toArray<HTMLElement>(".timeline-row");
+     rows.forEach((row) => {
+      const card = row.querySelector(".journey-card");
+      const info = row.querySelector(".journey-info");
+      const icon = row.querySelector(".journey-icon");
+      // Since we used <HTMLElement> above, TS now knows 'row' has a classList
+      const isEven = row.classList.contains("row-even");
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: row,
+          start: "top 85%",
+          end: "top 40%",
+          scrub: 1,
+        }
+      });
+
+        // The card slides in from the side
+        tl.fromTo(card, 
+          { x: isEven ? -200 : 200, opacity: 0, rotate: isEven ? 10 : -10 },
+          { x: 0, opacity: 1, rotate: isEven ? 2 : -2, duration: 1 }
+        )
+        // The text fades in from the opposite side
+        .fromTo(info, 
+          { x: isEven ? 100 : -100, opacity: 0 },
+          { x: 0, opacity: 1, duration: 1 },
+          "<" // Start at the same time as the card
+        )
+        // The center icon pops up
+        .fromTo(icon, 
+          { scale: 0, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.5 },
+          "-=0.5"
+        );
+      });
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, []);
 
   return (
-    <main className="min-h-screen bg-white pt-48">
+    <main ref={containerRef} className="min-h-screen bg-white pt-48 overflow-x-hidden">
       <section className="max-w-7xl mx-auto px-6 mb-32">
         
         {/* CENTERED HEADING */}
@@ -25,24 +88,29 @@ export default function JourneyClient({ locale }: { locale: string }) {
         </div>
 
         {/* TIMELINE CONTAINER */}
-        <div className="relative">
+        <div className="relative timeline-content">
           
-          {/* THE MIDDLE LINE */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 w-[2px] h-full bg-danube-gold/40"></div>
+          {/* THE MIDDLE LINE (Animated) */}
+          <div 
+            ref={lineRef}
+            className="absolute left-1/2 transform -translate-x-1/2 w-[2px] h-full bg-danube-gold origin-top z-0"
+          ></div>
 
-          <div className="space-y-32">
+          <div className="space-y-48">
             {journeyData.map((project, index) => {
               const isEven = index % 2 === 0;
 
               return (
-                <div key={index} className={`relative flex items-center justify-between w-full ${isEven ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div 
+                  key={index} 
+                  className={`timeline-row relative flex items-center justify-between w-full ${isEven ? 'flex-row-reverse row-even' : 'flex-row'}`}
+                >
                   
                   {/* PROJECT CARD (The Polaroid) */}
-                  <div className="w-[42%]">
+                  <div className="journey-card w-[42%] z-10">
                     {project.image ? (
-                        <div className={`relative bg-white p-4 pb-14 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-sm transform transition-all duration-500 hover:scale-105 hover:z-20 ${isEven ? 'rotate-2' : '-rotate-2'}`}>
+                        <div className={`relative bg-white p-4 pb-14 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm transform transition-all duration-500 hover:scale-105 hover:z-20 ${isEven ? 'rotate-2' : '-rotate-2'}`}>
                           
-                          {/* COMIC ARROW */}
                           <div className={`absolute top-10 w-6 h-6 bg-white rotate-45 transform shadow-[-5px_5px_10px_rgba(0,0,0,0.02)]
                             ${isEven ? '-left-3' : '-right-3'}`} 
                           />
@@ -62,7 +130,6 @@ export default function JourneyClient({ locale }: { locale: string }) {
                           </div>
                         </div>
                     ) : (
-                        /* MILESTONE CARD (The Origin Story) */
                         <div className={`relative bg-danube-gold/5 border-2 border-dashed border-danube-gold/30 p-10 rounded-2xl text-center flex flex-col items-center ${isEven ? 'rotate-1' : '-rotate-1'}`}>
                              <Home className="mb-4 text-danube-gold w-10 h-10" />
                              <h3 className="font-primary text-black text-[28px] uppercase">{project.title}</h3>
@@ -72,14 +139,14 @@ export default function JourneyClient({ locale }: { locale: string }) {
                   </div>
 
                   {/* CENTER ICON */}
-                  <div className="absolute left-1/2 transform -translate-x-1/2 z-10">
+                  <div className="journey-icon absolute left-1/2 transform -translate-x-1/2 z-20">
                     <div className="w-14 h-14 bg-danube-gold rounded-full flex items-center justify-center border-[6px] border-white shadow-xl">
                       <Building2 className="text-white w-6 h-6" />
                     </div>
                   </div>
 
-                  {/* DATE & DESCRIPTION (On the opposite side) */}
-                  <div className={`w-[42%] flex flex-col ${isEven ? 'items-start text-left' : 'items-end text-right'}`}>
+                  {/* DATE & DESCRIPTION */}
+                  <div className={`journey-info w-[42%] flex flex-col ${isEven ? 'items-start text-left' : 'items-end text-right'}`}>
                     <span className="font-primary text-danube-gold text-[38px] md:text-[48px] font-bold leading-none mb-4">
                       {project.year}
                     </span>
