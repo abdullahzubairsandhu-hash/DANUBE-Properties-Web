@@ -37,16 +37,35 @@ interface FAQ {
 // --- COMPONENTS ---
 
 // 1. HERO SECTION
-export function ProjectHero({ mediaId, isVideo }: { mediaId: string; isVideo: boolean }) {
+import { useAdmin } from "@/context/AdminContext";
+import AdminProjectBar from "@/components/admin/AdminProjectBar";
+import { useRouter } from "next/navigation";
+
+
+gsap.registerPlugin(ScrollTrigger);
+
+export function ProjectHero({ 
+  mediaId, 
+  isVideo, 
+  slug, 
+  status,
+  projectId 
+}: { 
+  mediaId: string; 
+  isVideo: boolean; 
+  slug: string; 
+  status: string;
+  projectId: string;
+}) {
   const heroRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
+  const { isAdmin } = useAdmin();
+  const router = useRouter();
 
-  // We manually build the Cloudinary URL to ensure high quality and "shimmer"
   const videoUrl = `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload/q_auto,f_auto,e_improve:outdoor,cs_srgb/${mediaId}`;
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Subtle parallax scale effect on the hero media as you scroll
       gsap.to(mediaRef.current, {
         scrollTrigger: {
           trigger: heroRef.current,
@@ -58,12 +77,31 @@ export function ProjectHero({ mediaId, isVideo }: { mediaId: string; isVideo: bo
         ease: "none"
       });
     }, heroRef);
-
     return () => ctx.revert();
   }, []);
 
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      const res = await fetch(`/api/admin/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        // router.refresh() tells Next.js to fetch data from the server again
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    }
+  };
+
   return (
-    <section ref={heroRef} className="relative w-full h-[80vh] lg:h-screen bg-black overflow-hidden">
+    <section 
+      ref={heroRef} 
+      className={`relative w-full h-[80vh] lg:h-screen bg-black overflow-hidden transition-all duration-500 ${isAdmin ? "border-x-2 border-danube-gold/20" : ""}`}
+    >
+      {/* 1. THE MEDIA (STAYS FLUSH AT TOP) */}
       <div ref={mediaRef} className="w-full h-full">
         {isVideo ? (
           <video
@@ -80,6 +118,17 @@ export function ProjectHero({ mediaId, isVideo }: { mediaId: string; isVideo: bo
           <CldImage src={mediaId} alt="Hero" fill className="object-cover" priority />
         )}
       </div>
+
+      {/* 2. THE ADMIN BAR (POSITIONED AT THE BOTTOM OF THE HERO) */}
+      {isAdmin && (
+        <div className="absolute bottom-0 left-0 w-full z-[20]">
+          <AdminProjectBar 
+            slug={slug} 
+            initialStatus={status} 
+            onStatusChange={handleStatusChange} 
+          />
+        </div>
+      )}
     </section>
   );
 }

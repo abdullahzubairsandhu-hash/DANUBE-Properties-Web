@@ -44,40 +44,7 @@ export interface Project {
 }
   
   export const PROJECTS_DATA: Record<string, Project> = {
-    sparklz: {
-      title: "Sparklz by Danube",
-      heroMediaId: "sparklz-hero-video_abc123", 
-      heroIsVideo: true,
-      descEn: "Sparklz by Danube Properties is a luxury residential landmark located in the heart of Al Furjan...",
-      descAr: "سباركلز من دانوب العقارية هو معلم سكني فاخر يقع في قلب الفرجان...",
-      specs: {
-        price: "AED 1.2M",
-        completion: "Dec 2026",
-        paymentPlan: "1% Monthly",
-        apartments: "Studio, 1 & 2 BR",
-        bedrooms: "Up to 2",
-        location: "Al Furjan",
-      },
-      areaReasons: [
-        { icon: "metro_icon", textEn: "2 Mins to Metro", textAr: "دقيقتان إلى المترو" },
-      ],
-      gallery4: ["img1_id", "img2_id", "img3_id", "img4_id"],
-      amenities: [
-        { titleEn: "Gym", titleAr: "نادي رياضي", imageId: "gym_pic", icon: "gym_icon_id" },
-        { titleEn: "Pool", titleAr: "مسبح", imageId: "pool_pic", icon: "pool_icon_id" },
-      ],
-      mediaGallery: ["m1", "m2", "m3", "m4", "m5"],
-      mapIframe: "https://www.google.com/maps/embed?pb=...",
-      faqs: [
-        { 
-          qEn: "Where is Sparklz located?", 
-          aEn: "It is located in Al Furjan, Dubai.", 
-          qAr: "أين يقع سباركلز؟", 
-          aAr: "يقع في الفرجان، دبي." 
-        },
-      ],
-    },
-
+    
     "shahrukhz": {
     title: "SHAHRUKHZ BY DANUBE",
     heroMediaId: "baner_updated_srk_zemgre",
