@@ -52,6 +52,9 @@ export default async function ProjectMasterPage({
       <ProjectHero 
         mediaId={project.heroMediaId} 
         isVideo={project.heroIsVideo} 
+        slug={project.slug}           // Add this
+        status={project.status}       // Add this
+        projectId={project._id}
       />
 
       <section className="relative py-24 px-8 max-w-[1440px] mx-auto text-center">
