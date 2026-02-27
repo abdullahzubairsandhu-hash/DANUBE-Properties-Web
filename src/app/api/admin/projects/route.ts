@@ -3,7 +3,6 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Project from '@/models/Project';
-import { MongoError } from 'mongodb';
 
 /**
  * Interface for consistent error handling
@@ -38,42 +37,46 @@ export async function POST(request: Request) {
     await connectDB();
     const body = await request.json();
 
-    // 1. Strict Validation
+    // 1. Validation
     if (!body.slug || !body.title) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields: title and slug are mandatory." },
+        { success: false, error: "Title and Slug are mandatory." },
         { status: 400 }
       );
     }
 
-    // 2. Logic: Ensure only one project is 'isLatestLaunch'
-    if (body.isLatestLaunch === true) {
-      await Project.updateMany({}, { isLatestLaunch: false });
+    // 2. Status Shifter Logic for Global State
+    // If setting this project to 'latest', demote existing latest project
+    if (body.status === 'latest') {
+      await Project.updateMany({ status: 'latest' }, { status: 'ongoing' });
     }
 
-    // 3. Create the Project
-    const newProject = await Project.create(body);
+    // 3. The Robust Upsert
+    const updatedProject = await Project.findOneAndUpdate(
+      { slug: body.slug.toLowerCase().trim() },
+      { $set: body },
+      { 
+        new: true, 
+        upsert: true, 
+        runValidators: true,
+        setDefaultsOnInsert: true 
+      }
+    );
 
     return NextResponse.json({ 
       success: true, 
-      message: "New project successfully published.", 
-      data: newProject 
-    }, { status: 201 });
+      message: "Project data synchronized successfully.", 
+      data: updatedProject 
+    });
 
   } catch (error: unknown) {
-    console.error("Critical Project Creation Error:", error);
-
-    // Using MongoError to check for duplicate keys (code 11000)
-    if (error instanceof MongoError && error.code === 11000) {
-      return NextResponse.json(
-        { success: false, error: "A project with this slug or unique identifier already exists." },
-        { status: 409 }
-      );
-    }
-
-    const err = error as ErrorResponse;
+    console.error("Upsert Error:", error);
+    
+    // Type-safe error message extraction
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    
     return NextResponse.json(
-      { success: false, error: err.message || "An unexpected error occurred." },
+      { success: false, error: errorMessage }, 
       { status: 500 }
     );
   }
