@@ -15,6 +15,10 @@ import {
 } from "@/components/project/ProjectComponents";
 import ContactSection from "@/components/shared/ContactSection";
 import Footer from "@/components/shared/Footer";
+import AdminProjectBar from "@/components/admin/AdminProjectBar";
+import ClientOnlyAdmin from "@/components/admin/ClientOnlyAdmin";
+import AdminEditableWrapper from "@/components/admin/AdminEditableWrapper";
+import AdminGalleryManager from "@/components/admin/AdminGalleryManager"; // New Import
 
 export default async function ProjectMasterPage({ 
   params 
@@ -36,6 +40,14 @@ export default async function ProjectMasterPage({
    * cannot parse. This converts the document into a plain JSON object.
    */
   const project = JSON.parse(JSON.stringify(rawProject));
+  const projectIdStr = project._id.toString();
+
+  // 1. Logic for Status Change (called from the bar)
+  async function handleStatusChange(newStatus: string) {
+    'use server';
+    await connectDB();
+    await Project.findOneAndUpdate({ slug }, { status: newStatus });
+  }
 
   // Logic for Dynamic CTA
   const completionValue = project.specs?.completion || "";
@@ -47,8 +59,21 @@ export default async function ProjectMasterPage({
     : (completionYear > 2026 ? "جولة افتراضية" : "احجز عبر الإنترنت");
 
   return (
-    <main className="bg-white overflow-x-hidden">
+    <main className="bg-white overflow-x-hidden pb-24">
+
+      {/* BAR IS NOW SELF-CONTAINED. 
+          It handles its own "Edit" navigation. 
+      */}
+      <ClientOnlyAdmin>
+      <AdminProjectBar 
+        initialStatus={project.status} 
+        slug={project.slug} 
+        onStatusChange={handleStatusChange} 
+      />
+      </ClientOnlyAdmin>
+
       {/* 1. HERO SECTION */}
+      <ClientOnlyAdmin>
       <ProjectHero 
         mediaId={project.heroMediaId} 
         isVideo={project.heroIsVideo} 
@@ -56,20 +81,32 @@ export default async function ProjectMasterPage({
         status={project.status}       // Add this
         projectId={project._id}
       />
+      </ClientOnlyAdmin>
 
-      <section className="relative py-24 px-8 max-w-[1440px] mx-auto text-center">
+      <section className="relative py-24 px-8 max-w-[1440px] mx-auto text-center min-h-[450px]">
         <div className="mb-16">
+        <ClientOnlyAdmin>
+        <AdminEditableWrapper projectId={project._id} field="title" initialValue={project.title} type="text">
           <h1 className="font-primary text-[40px] lg:text-[60px] text-danube-gold uppercase leading-tight">
             {project.title}
           </h1>
+          </AdminEditableWrapper>
+          
           
           {/* Requirement: Always use font-medium for paragraphs */}
+          <AdminEditableWrapper 
+          projectId={project._id} 
+          field={isEn ? "descEn" : "descAr"} 
+          initialValue={isEn ? project.descEn : project.descAr}
+          >
           <div className="font-medium text-[17px] lg:text-[20px] text-gray-500 mt-8 max-w-3xl mx-auto leading-relaxed whitespace-pre-line">
             {isEn 
               ? project.descEn?.replaceAll('. ', '.\n\n') 
               : project.descAr?.replaceAll('. ', '.\n\n')
             }
           </div>
+          </AdminEditableWrapper>
+          </ClientOnlyAdmin>
         </div>
 
         {/* SPECS GRID */}
@@ -114,8 +151,22 @@ export default async function ProjectMasterPage({
         isEn={isEn} 
       />
 
-      {/* 5. REVEAL GALLERY */}
-      <RevealGallery images={project.gallery4 || []} isEn={isEn} />
+     {/* 5. REVEAL GALLERY SECTION */}
+<div className="relative">
+  {/* The Static Manager: Stable, non-scrolling, and easy to click */}
+  <ClientOnlyAdmin>
+    <AdminGalleryManager 
+    projectId={projectIdStr} 
+    currentImages={project.gallery4 || []}
+    />
+  </ClientOnlyAdmin>
+
+  {/* The Display: Clean, fast, and no longer "infected" by prop-drilling errors */}
+  <RevealGallery 
+    images={project.gallery4 || []} 
+    isEn={isEn} 
+  />
+</div>
 
       {/* 6. AMENITIES SLIDER - IDs are now strings, fixing runtime errors */}
       <div className="bg-white py-10">

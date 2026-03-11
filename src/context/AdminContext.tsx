@@ -8,14 +8,14 @@ interface AdminContextType {
   isAdmin: boolean;
   toggleAdmin: (pass: string) => boolean;
   logout: () => void;
+  editMode: boolean;
+  setEditMode: (val: boolean) => void;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  // Directly initialize from localStorage. 
-  // Because we use ClientOnlyAdmin in our components, 
-  // we don't need to worry about the server-side mismatch here.
+  // 1. Admin Status (LocalStorage - Persists indefinitely)
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('danube_admin_status') === 'authenticated';
@@ -23,8 +23,23 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     return false;
   });
 
+  // 2. Edit Mode (SessionStorage - Persists on refresh, clears when tab closes)
+  const [editMode, setEditMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('danube_edit_mode') === 'true';
+    }
+    return false;
+  });
+
+  // Wrapper function to sync state with storage
+  const handleSetEditMode = (val: boolean) => {
+    setEditMode(val);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('danube_edit_mode', val.toString());
+    }
+  };
+
   const toggleAdmin = (pass: string) => {
-    // Current simple auth logic
     if (pass === "danube2026") { 
       setIsAdmin(true);
       if (typeof window !== 'undefined') {
@@ -39,13 +54,21 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setIsAdmin(false);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('danube_admin_status');
+      sessionStorage.removeItem('danube_edit_mode'); // Clean up edit mode too
     }
-    // Force reload to home to clear any admin-only state from memory
     window.location.href = '/'; 
   };
 
   return (
-    <AdminContext.Provider value={{ isAdmin, toggleAdmin, logout }}>
+    <AdminContext.Provider 
+      value={{ 
+        isAdmin, 
+        toggleAdmin, 
+        logout, 
+        editMode, 
+        setEditMode: handleSetEditMode 
+      }}
+    >
       {children}
     </AdminContext.Provider>
   );

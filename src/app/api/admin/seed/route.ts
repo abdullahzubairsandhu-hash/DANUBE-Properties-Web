@@ -1,38 +1,26 @@
 // src/app/api/admin/seed/route.ts
 
-import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import News from '@/models/News';
-import Blog from '@/models/Blog';
-import Video from '@/models/Video'; // Add this
-import { newsSeedData } from '@/data/news-seed';
-import { blogSeedData } from '@/data/blog-seed';
-import { videoSeedData } from '@/data/video-seed'; // Add this
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import HomeFeatured from "@/models/HomeFeatured";
+
+const initialData = [
+  { publicId: "Breez-image-1_zueu8a", slug: "breez", order: 0 },
+  { publicId: "aspirz-image-1_yu3ur4", slug: "aspirz", order: 1 },
+  { publicId: "sparklz-image-1_cnmszt", slug: "sparklz", order: 2 },
+  { publicId: "timez-image-1_w3svcj", slug: "timez", order: 3 },
+  { publicId: "bayz102-image-1_xnlntx", slug: "bayz-102", order: 4 },
+  { publicId: "diamondz-image-1_ceep0e", slug: "diamondz", order: 5 },
+];
 
 export async function GET() {
-  await dbConnect();
-
   try {
-    // Seed News
-    await News.deleteMany({});
-    await News.insertMany(newsSeedData);
-
-    // Seed Blogs
-    await Blog.deleteMany({});
-    await Blog.insertMany(blogSeedData);
-
-    // Seed Videos
-    await Video.deleteMany({});
-    await Video.insertMany(videoSeedData);
-
-    return NextResponse.json({ 
-      message: "Database seeded successfully!",
-      newsCount: newsSeedData.length,
-      blogCount: blogSeedData.length,
-      videoCount: videoSeedData.length 
-    });
-  } catch (error) {
-    console.error(error);
+    await connectDB();
+    // Optional: clear existing to avoid duplicates during testing
+    await HomeFeatured.deleteMany({}); 
+    const result = await HomeFeatured.insertMany(initialData);
+    return NextResponse.json({ message: "Seed successful", data: result });
+  } catch {
     return NextResponse.json({ error: "Seed failed" }, { status: 500 });
   }
 }

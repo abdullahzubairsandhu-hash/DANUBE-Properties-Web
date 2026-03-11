@@ -15,7 +15,7 @@ interface ErrorResponse {
 export async function GET() {
   try {
     await connectDB();
-    const projects = await Project.find({}).sort({ isLatestLaunch: -1, createdAt: -1 });
+    const projects = await Project.find({}).sort({ status: 1, createdAt: -1 });
     
     return NextResponse.json({ 
       success: true, 
@@ -37,47 +37,42 @@ export async function POST(request: Request) {
     await connectDB();
     const body = await request.json();
 
-    // 1. Validation
-    if (!body.slug || !body.title) {
-      return NextResponse.json(
-        { success: false, error: "Title and Slug are mandatory." },
-        { status: 400 }
-      );
-    }
+    if (!body.slug) return NextResponse.json({ success: false, error: "Slug is required" }, { status: 400 });
 
-    // 2. Status Shifter Logic for Global State
-    // If setting this project to 'latest', demote existing latest project
-    if (body.status === 'latest') {
+    // SURGICAL LOGIC: If body has "partial: true", we only $set the specific field
+    // This allows our future AdminContentWrapper to work without a big form.
+    const updateData = body.partial ? { $set: body.data } : { $set: body };
+
+    if (body.status === 'latest' && !body.partial) {
       await Project.updateMany({ status: 'latest' }, { status: 'ongoing' });
     }
 
-    // 3. The Robust Upsert
     const updatedProject = await Project.findOneAndUpdate(
       { slug: body.slug.toLowerCase().trim() },
-      { $set: body },
-      { 
-        new: true, 
-        upsert: true, 
-        runValidators: true,
-        setDefaultsOnInsert: true 
-      }
+      updateData,
+      { new: true, upsert: true }
     );
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Project data synchronized successfully.", 
-      data: updatedProject 
-    });
-
+    return NextResponse.json({ success: true, data: updatedProject });
   } catch (error: unknown) {
-    console.error("Upsert Error:", error);
-    
-    // Type-safe error message extraction
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    
-    return NextResponse.json(
-      { success: false, error: errorMessage }, 
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during update";
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
+  }
+}
+
+// NEW DELETE METHOD
+export async function DELETE(request: Request) {
+  try {
+    await connectDB();
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ success: false, error: "ID is required" }, { status: 400 });
+
+    await Project.findByIdAndDelete(id);
+    return NextResponse.json({ success: true, message: "Project deleted" });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred during deletion";
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
   }
 }

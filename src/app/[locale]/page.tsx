@@ -1,43 +1,74 @@
-// src/app/page.tsx
+// src/app/[locale]/page.tsx
 
 import HeroSection from "@/components/home/HeroSection";
-import PropertyShowcase from "@/components/home/PropertyShowcase";
-import FeaturedProjects from "@/components/home/FeaturedProjects";
+import HomeShowcaseWrapper from "@/components/home/HomeShowcaseWrapper"; // NEW WRAPPER
 import ContactSection from "@/components/shared/ContactSection";
 import FounderSection from "@/components/home/FounderSection";
 import BlogSection from "@/components/home/BlogSection";
 import Footer from "@/components/shared/Footer";
+import connectDB from "@/lib/mongodb";
+import Project from "@/models/Project";
+import Blog from "@/models/Blog";
+import HomeFeatured from "@/models/HomeFeatured";
 
-// We make the Page function 'async' to handle Next.js 15 Promise-based params
 export default async function HomePage({ 
   params 
 }: { 
   params: Promise<{ locale: string }> 
 }) {
-  // Unwrapping the params promise
   const { locale } = await params;
+
+  await connectDB();
+  
+  const latestProjectRaw = await Project.findOne({ isLatestLaunch: true })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const latestBlogsRaw = await Blog.find({})
+    .sort({ publishedAt: -1 })
+    .limit(4)
+    .lean();
+
+  const featuredItemsRaw = await HomeFeatured.find({})
+    .sort({ order: 1 })
+    .lean();
+
+  const latestProject = latestProjectRaw ? JSON.parse(JSON.stringify(latestProjectRaw)) : null;
+  const latestBlogs = latestBlogsRaw ? JSON.parse(JSON.stringify(latestBlogsRaw)) : [];
+  const featuredItems = JSON.parse(JSON.stringify(featuredItemsRaw));
+
+  const heroData = {
+    videoUrl: latestProject?.heroMediaId || "SRK_danube_w5i94j",
+    projectName: latestProject?.title || "Project",
+    projectSlug: latestProject?.slug || "#",
+    gallery: latestProject?.gallery4 || []
+  };
 
   return (
     <main className="relative w-full overflow-x-hidden bg-white dark:bg-danube-navy">
-      {/* 1. SHAHRUKHZ HERO (Video + Latest Launch Banner) */}
-      <HeroSection locale={locale} />
+      <HeroSection 
+        locale={locale} 
+        videoUrl={heroData.videoUrl} 
+        projectName={heroData.projectName}
+        slug={heroData.projectSlug}
+      />
 
-      {/* 2. SHAHRUKHZ DEEP-DIVE (4 Full-screen Stacking Images) */}
-      <PropertyShowcase locale={locale} />
+      {/* This wrapper handles the shared state between the button and the modal */}
+      <HomeShowcaseWrapper 
+        locale={locale}
+        gallery={heroData.gallery}
+        projectSlug={heroData.projectSlug}
+        featuredItems={featuredItems}
+      />
 
-      {/* 3. FEATURED PROPERTY PROJECTS (6 Full-screen Clickable Images) */}
-      <FeaturedProjects locale={locale} />
-
-      {/* 4. FOUNDER SECTION (Rizwan Sajan) */}
       <FounderSection locale={locale} />
 
-      {/* 6. BLOG SECTION (4 News Cards) */}
-      <BlogSection locale={locale} />
+      <BlogSection 
+        locale={locale} 
+        blogs={latestBlogs} 
+      />
 
-      {/* 5. GET IN TOUCH SECTION */}
       <ContactSection locale={locale} />
-
-      {/* 7. FOOTER */}
       <Footer locale={locale} />
     </main>
   );

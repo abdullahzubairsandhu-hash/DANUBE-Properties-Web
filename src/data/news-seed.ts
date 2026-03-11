@@ -1,6 +1,5 @@
 // src/data/news-seed.ts
 
-// src/data/news-seed.ts
 
 export const newsSeedData = [
     {

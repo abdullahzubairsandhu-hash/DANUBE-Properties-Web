@@ -9,6 +9,9 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CldImage } from "next-cloudinary";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import 'next-cloudinary/dist/cld-video-player.css';
+import ClientOnlyAdmin from "@/components/admin/ClientOnlyAdmin";
+import AdminEditableWrapper from "@/components/admin/AdminEditableWrapper";
+
 
 // Register GSAP Plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -38,18 +41,12 @@ interface FAQ {
 
 // 1. HERO SECTION
 import { useAdmin } from "@/context/AdminContext";
-import AdminProjectBar from "@/components/admin/AdminProjectBar";
-import { useRouter } from "next/navigation";
-
 
 gsap.registerPlugin(ScrollTrigger);
 
 export function ProjectHero({ 
   mediaId, 
   isVideo, 
-  slug, 
-  status,
-  projectId 
 }: { 
   mediaId: string; 
   isVideo: boolean; 
@@ -60,7 +57,6 @@ export function ProjectHero({
   const heroRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLDivElement>(null);
   const { isAdmin } = useAdmin();
-  const router = useRouter();
 
   const videoUrl = `https://res.cloudinary.com/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload/q_auto,f_auto,e_improve:outdoor,cs_srgb/${mediaId}`;
 
@@ -80,28 +76,22 @@ export function ProjectHero({
     return () => ctx.revert();
   }, []);
 
-  const handleStatusChange = async (newStatus: string) => {
-    try {
-      const res = await fetch(`/api/admin/projects/${projectId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        // router.refresh() tells Next.js to fetch data from the server again
-        router.refresh();
-      }
-    } catch (err) {
-      console.error("Failed to update status:", err);
-    }
-  };
-
   return (
     <section 
       ref={heroRef} 
-      className={`relative w-full h-[80vh] lg:h-screen bg-black overflow-hidden transition-all duration-500 ${isAdmin ? "border-x-2 border-danube-gold/20" : ""}`}
+      className="relative w-full h-[80vh] lg:h-screen bg-black overflow-hidden transition-all duration-500"
     >
-      {/* 1. THE MEDIA (STAYS FLUSH AT TOP) */}
+      {/* This ClientOnlyAdmin block will "inject" the borders only on the client.
+        We use an absolute div to overlay the borders so we don't change the 
+        section's className, which is what was causing the hydration error.
+      */}
+      <ClientOnlyAdmin>
+        {isAdmin && (
+          <div className="absolute inset-0 border-x-4 border-danube-gold/30 z-[50] pointer-events-none" />
+        )}
+      </ClientOnlyAdmin>
+
+      {/* 1. THE MEDIA */}
       <div ref={mediaRef} className="w-full h-full">
         {isVideo ? (
           <video
@@ -118,23 +108,24 @@ export function ProjectHero({
           <CldImage src={mediaId} alt="Hero" fill className="object-cover" priority />
         )}
       </div>
-
-      {/* 2. THE ADMIN BAR (POSITIONED AT THE BOTTOM OF THE HERO) */}
-      {isAdmin && (
-        <div className="absolute bottom-0 left-0 w-full z-[20]">
-          <AdminProjectBar 
-            slug={slug} 
-            initialStatus={status} 
-            onStatusChange={handleStatusChange} 
-          />
-        </div>
-      )}
     </section>
   );
 }
 
 // 2. SPECS GRID
-export function SpecBox({ label, value, idx }: { label: string; value: string; idx: number }) {
+export function SpecBox({ 
+  label, 
+  value, 
+  idx, 
+  projectId, 
+  field 
+}: { 
+  label: string; 
+  value: string; 
+  idx: number;
+  projectId?: string;
+  field?: string;
+}) {
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -180,9 +171,17 @@ export function SpecBox({ label, value, idx }: { label: string; value: string; i
       <span className="font-secondary text-gray-400 text-[12px] tracking-[2.8px] uppercase mb-3 font-medium">
         {label}
       </span>
-      <span className="font-primary text-danube-gold text-[20px] lg:text-[26px] uppercase tracking-wide text-center leading-tight">
-        {value}
-      </span>
+      {projectId && field ? (
+        <AdminEditableWrapper projectId={projectId} field={`specs.${field}`} initialValue={value} type="text">
+           <span className="font-primary text-danube-gold text-[20px] lg:text-[26px] uppercase tracking-wide text-center leading-tight">
+            {value}
+          </span>
+        </AdminEditableWrapper>
+      ) : (
+        <span className="font-primary text-danube-gold text-[20px] lg:text-[26px] uppercase tracking-wide text-center leading-tight">
+          {value}
+        </span>
+      )}
     </div>
   );
 }
@@ -282,6 +281,103 @@ export function WhyArea({ area, items, isEn }: { area: string; items: WhyAreaIte
   );
 }
 
+
+// 4. REVEAL GALLERY (CLEANED VERSION - NO MORE SWAP BUTTONS)
+export function RevealGallery({ 
+  images, 
+  isEn 
+}: { 
+  images: string[]; 
+  isEn: boolean; 
+}) {
+  const { editMode } = useAdmin(); // Destructure editMode from context
+  const mainContainer = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const totalImages = images.length;
+
+  // 1. Core GSAP Timeline logic
+  useEffect(() => {
+    if (totalImages === 0) return;
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: triggerRef.current,
+          id: "reveal-gallery-trigger", // Added ID for easier debugging
+          start: "top top",
+          end: `+=${(totalImages + 1) * 100}%`,
+          pin: true,
+          scrub: 1,
+          invalidateOnRefresh: true, // Forces re-calculation on refresh
+        }
+      });
+
+      images.forEach((_, index) => {
+        tl.to(`.gallery-img-${index}`, {
+          clipPath: 'inset(0 0 100% 0)',
+          ease: "none",
+          duration: 1
+        }, index);
+      });
+
+      tl.fromTo(".amenities-banner", 
+        { opacity: 0, scale: 0.95 },
+        { opacity: 1, scale: 1, duration: 1, ease: "power2.out" }, 
+        `-=${0.5}`
+      );
+    }, mainContainer);
+
+    return () => ctx.revert();
+  }, [images, totalImages]);
+
+  // 2. Surgical Fix for Layout Jumps
+  // When editMode toggles, the Admin button appears/disappears, shifting the DOM.
+  // We wait 200ms for the DOM to settle, then tell GSAP to re-measure everything.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [editMode]);
+
+  return (
+    <div ref={mainContainer} className="relative w-full bg-black overflow-hidden">
+      <div ref={triggerRef} className="relative w-full h-screen">
+        
+        {images.map((img, index) => (
+          <div
+            key={`${img}-${index}`} 
+            className={`gallery-img-${index} absolute inset-0 w-full h-full`}
+            style={{
+              zIndex: (totalImages + 10) - index,
+              clipPath: 'inset(0 0 0% 0)',
+            }}
+          >
+            <CldImage 
+              src={img} 
+              alt={`Gallery ${index}`} 
+              fill 
+              className="object-cover" 
+              priority={index === 0} 
+            />
+            <div className="absolute inset-0 bg-black/10" />
+          </div>
+        ))}
+
+        <div className="amenities-banner absolute inset-0 w-full h-full bg-black z-[5] flex items-center justify-center text-center border-t border-danube-gold/20">
+          <div>
+            <h2 className="font-primary text-danube-gold text-[60px] lg:text-[120px] uppercase leading-tight tracking-tight px-4">
+              {isEn ? "Amenities" : "المرافق"}
+            </h2>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 5-6. AMENITIES SLIDER (Cinematic Slide Transition) - AMENITIES ICON MODAL (show all amenities icons)
 export function AmenitiesSlider({ 
   showcase, 
   icons, 
@@ -402,89 +498,7 @@ export function AmenitiesSlider({
   );
 }
 
-// 5. REVEAL GALLERY (Fixed Sticky logic)
-export function RevealGallery({ images, isEn }: { images: string[]; isEn: boolean }) {
-  const mainContainer = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Create the timeline for the scroll sequence
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: triggerRef.current,
-          start: "top top",
-          end: "+=400%", // Matches your 420vh feel (4 images + 1 banner)
-          pin: true,
-          scrub: 1,
-        }
-      });
-
-      // 1. IMAGE WIPE SEQUENCE
-      // Loop through the first 4 images
-      images.slice(0, 4).forEach((_, index) => {
-        tl.to(`.gallery-img-${index}`, {
-          clipPath: 'inset(0 0 100% 0)',
-          ease: "none",
-          duration: 1
-        }, index); // Each starts at its own second in the timeline
-      });
-
-      // 2. FINAL AMENITIES BANNER REVEAL
-      tl.fromTo(".amenities-banner", 
-        { opacity: 0, scale: 0.95 },
-        { 
-          opacity: 1, 
-          scale: 1, 
-          duration: 1, 
-          ease: "power2.out" 
-        }, 
-        "-=0.5" // Start slightly before the last image finish wiping
-      );
-
-    }, mainContainer);
-
-    return () => ctx.revert();
-  }, [images]);
-
-  return (
-    <div ref={mainContainer} className="relative w-full bg-black overflow-hidden">
-      <div ref={triggerRef} className="relative w-full h-screen">
-        
-        {/* GALLERY IMAGES */}
-        {images.slice(0, 4).map((img, index) => (
-          <div
-            key={index}
-            className={`gallery-img-${index} absolute inset-0 w-full h-full`}
-            style={{
-              zIndex: 20 - index,
-              clipPath: 'inset(0 0 0% 0)', // Start fully visible
-            }}
-          >
-            <CldImage 
-              src={img} 
-              alt={`Gallery ${index}`} 
-              fill 
-              className="object-cover" 
-              priority={index === 0} 
-            />
-            <div className="absolute inset-0 bg-black/10" />
-          </div>
-        ))}
-
-        {/* FINAL LAYER: THE AMENITIES BANNER */}
-        <div className="amenities-banner absolute inset-0 w-full h-full bg-black z-[5] flex items-center justify-center text-center">
-          <div>
-            <h2 className="font-primary text-danube-gold text-[60px] lg:text-[120px] uppercase leading-tight tracking-tight">
-              {isEn ? "Amenities" : "المرافق"}
-            </h2>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  );
-}
 
 // 7. MEDIA GALLERY
 export function ImageGallery({ images, isEn }: { images: string[]; isEn: boolean }) {
@@ -584,6 +598,17 @@ export function ImageGallery({ images, isEn }: { images: string[]; isEn: boolean
   );
 }
 
+// 8. MAP SECTION (Missing Component added)
+export function MapSection({ iframeUrl }: { iframeUrl: string }) {
+  return (
+    <section className="py-20 px-8 lg:px-24">
+      <div className="max-w-[1200px] mx-auto h-[450px] overflow-hidden rounded-xl border border-gray-100 shadow-lg">
+        <iframe src={iframeUrl} width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" />
+      </div>
+    </section>
+  );
+}
+
 // 9. FAQ SECTION
 export function FAQSection({ faqs, isEn }: { faqs: FAQ[]; isEn: boolean }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -617,13 +642,3 @@ export function FAQSection({ faqs, isEn }: { faqs: FAQ[]; isEn: boolean }) {
   );
 }
 
-// 8. MAP SECTION (Missing Component added)
-export function MapSection({ iframeUrl }: { iframeUrl: string }) {
-  return (
-    <section className="py-20 px-8 lg:px-24">
-      <div className="max-w-[1200px] mx-auto h-[450px] overflow-hidden rounded-xl border border-gray-100 shadow-lg">
-        <iframe src={iframeUrl} width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" />
-      </div>
-    </section>
-  );
-}
